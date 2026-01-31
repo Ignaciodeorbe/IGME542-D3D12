@@ -20,7 +20,7 @@ namespace Graphics
 		BOOL isFullscreen = false;
 
 		D3D_FEATURE_LEVEL featureLevel{};
-
+		unsigned int currentBackBufferIndex = 0;
 	}
 }
 
@@ -34,9 +34,14 @@ std::wstring Graphics::APIName()
 	case D3D_FEATURE_LEVEL_10_1: return L"D3D10.1";
 	case D3D_FEATURE_LEVEL_11_0: return L"D3D11";
 	case D3D_FEATURE_LEVEL_11_1: return L"D3D11.1";
+	case D3D_FEATURE_LEVEL_12_0: return L"D3D12";
+	case D3D_FEATURE_LEVEL_12_1: return L"D3D12.1";
+	case D3D_FEATURE_LEVEL_12_2: return L"D3D12.2";
 	default: return L"Unknown";
 	}
 }
+
+unsigned int Graphics::SwapChainIndex() { return currentBackBufferIndex; }
 
 // --------------------------------------------------------
 // Initializes the Graphics API, which requires window details.
@@ -51,117 +56,146 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Only initialize once
 	if (apiInitialized)
 		return E_FAIL;
-
 	// Save desired vsync state, though it may be stuck "on" if
 	// the device doesn't support screen tearing
 	vsyncDesired = vsyncIfPossible;
-
 	// Determine if screen tearing ("vsync off") is available
 	// - This is necessary due to variable refresh rate displays
-	Microsoft::WRL::ComPtr<IDXGIFactory5> factory;
+	Microsoft::WRL::ComPtr <IDXGIFactory5 > factory;
 	if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))))
 	{
 		// Check for this specific feature (must use BOOL typedef here!)
 		BOOL tearingSupported = false;
-		HRESULT featureCheck = factory->CheckFeatureSupport(
+		HRESULT featureCheck = factory -> CheckFeatureSupport(
 			DXGI_FEATURE_PRESENT_ALLOW_TEARING,
 			&tearingSupported,
 			sizeof(tearingSupported));
-
 		// Final determination of support
 		supportsTearing = SUCCEEDED(featureCheck) && tearingSupported;
 	}
 
-	// This will hold options for DirectX initialization
-	unsigned int deviceFlags = 0;
-
-#if defined(DEBUG) || defined(_DEBUG)
 	// If we're in debug mode in visual studio, we also
-	// want to make a "Debug DirectX Device" to see some
+	// want to enable the D3D12 debug layer to see some
 	// errors and warnings in Visual Studio's output window
 	// when things go wrong!
-	deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-	// Create a description of how our swap
-	// chain should work
-	DXGI_SWAP_CHAIN_DESC swapDesc = {};
-	swapDesc.BufferCount		= 2;
-	swapDesc.BufferDesc.Width	= windowWidth;
-	swapDesc.BufferDesc.Height	= windowHeight;
-	swapDesc.BufferDesc.RefreshRate.Numerator = 60;
-	swapDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapDesc.BufferDesc.Format	= DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	swapDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	swapDesc.BufferUsage		= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapDesc.Flags				= supportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-	swapDesc.OutputWindow		= windowHandle;
-	swapDesc.SampleDesc.Count	= 1;
-	swapDesc.SampleDesc.Quality = 0;
-	swapDesc.SwapEffect			= DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapDesc.Windowed			= true;
-
-	// Result variable for below function calls
-	HRESULT hr = S_OK;
-
-	// Attempt to initialize Direct3D 11.1
-	D3D_FEATURE_LEVEL level_11_1 = D3D_FEATURE_LEVEL_11_1;
-	hr = D3D11CreateDeviceAndSwapChain(
-		0,							// Video adapter (physical GPU) to use, or null for default
-		D3D_DRIVER_TYPE_HARDWARE,	// We want to use the hardware (GPU)
-		0,							// Used when doing software rendering
-		deviceFlags,				// Any special options
-		&level_11_1,				// Specifying DirectX 11.1 only
-		1,							// The number of feature levels in the above param
-		D3D11_SDK_VERSION,			// Current version of the SDK
-		&swapDesc,					// Address of swap chain options
-		SwapChain.GetAddressOf(),	// Pointer to our Swap Chain pointer
-		(ID3D11Device**)Device.GetAddressOf(),	// Pointer to our Device pointer
-		&featureLevel,							// Retrieve exact API feature level in use
-		(ID3D11DeviceContext**)Context.GetAddressOf());	// Pointer to our Device Context pointer
-	
-	// Did 11.1 initialization fail?  If so, try 11.0
-	if (hr == E_INVALIDARG)
+	#if defined (DEBUG) || defined ( _DEBUG)
+		ID3D12Debug* debugController;
+		D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+		debugController -> EnableDebugLayer();
+	#endif
+	// Create the D3D12 device and check which feature level
+	// we can reliably use in our application
 	{
-		hr = D3D11CreateDeviceAndSwapChain(
-			0,							// Video adapter (physical GPU) to use, or null for default
-			D3D_DRIVER_TYPE_HARDWARE,	// We want to use the hardware (GPU)
-			0,							// Used when doing software rendering
-			deviceFlags,				// Any special options
-			0,							// Leave out the array of options to use the highest version available
-			0,							// The number of feature levels in the above param
-			D3D11_SDK_VERSION,			// Current version of the SDK
-			&swapDesc,					// Address of swap chain options
-			SwapChain.GetAddressOf(),	// Pointer to our Swap Chain pointer
-			(ID3D11Device**)Device.GetAddressOf(),	// Pointer to our Device pointer
-			&featureLevel,							// Retrieve exact API feature level in use
-			(ID3D11DeviceContext**)Context.GetAddressOf());	// Pointer to our Device Context pointer
-	}
-	
-	// If it's still a failure, we're unable to initialize any version of Direct3D
-	if (FAILED(hr))
-	{
-		return hr;
+		HRESULT createResult = D3D12CreateDevice(
+			0, // Not explicitly specifying which adapter (GPU)
+			D3D_FEATURE_LEVEL_11_0, // MIN level - NOT the level we'll necessarily turn on
+			IID_PPV_ARGS(Device.GetAddressOf())); // Macro to grab necessary IDs of device
+		if (FAILED(createResult))
+			return createResult;
+		// Now that we have a device, determine the maximum
+		// feature level supported by the device
+		D3D_FEATURE_LEVEL levelsToCheck[] = {
+		D3D_FEATURE_LEVEL_11_0 ,
+		D3D_FEATURE_LEVEL_11_1 ,
+		D3D_FEATURE_LEVEL_12_0 ,
+		D3D_FEATURE_LEVEL_12_1 ,
+		D3D_FEATURE_LEVEL_12_2
+		};
+
+		D3D12_FEATURE_DATA_FEATURE_LEVELS levels = {};
+		levels.pFeatureLevelsRequested = levelsToCheck;
+		levels.NumFeatureLevels = ARRAYSIZE(levelsToCheck);
+		Device -> CheckFeatureSupport(
+			D3D12_FEATURE_FEATURE_LEVELS,
+			&levels,
+			sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS));
+		featureLevel = levels.MaxSupportedFeatureLevel;
 	}
 
-	// We're set up
+	#if defined (DEBUG) || defined ( _DEBUG)
+		// Set up a callback for any debug messages
+		Device -> QueryInterface(IID_PPV_ARGS(&InfoQueue));
+	#endif
+
+	// Set up D3D12 command allocator / queue / list,
+	// which are necessary pieces for issuing standard API calls
+	{
+		// Set up allocator
+		Device -> CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT ,
+			IID_PPV_ARGS(CommandAllocator.GetAddressOf()));
+
+		// Command queue
+		D3D12_COMMAND_QUEUE_DESC qDesc = {};
+		qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		Device -> CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
+
+		// Command list
+		Device -> CreateCommandList(
+			0, // Which physical GPU will handle these tasks? 0 for single GPU setup
+			D3D12_COMMAND_LIST_TYPE_DIRECT , // Type of comman d list
+			CommandAllocator.Get(), // The allocator for this list
+			0, // Initial pipeline state - none for now
+			IID_PPV_ARGS(CommandList.GetAddressOf()));
+	}
+
+	// Swap chain creation
+	{
+		// Create a description of how our swap chain should work
+		DXGI_SWAP_CHAIN_DESC swapDesc = {};
+		swapDesc.BufferCount = NumBackBuffers;
+		swapDesc.BufferDesc.Width = windowWidth;
+		swapDesc.BufferDesc.Height = windowHeight;
+		swapDesc.BufferDesc.RefreshRate.Numerator = 60;
+		swapDesc.BufferDesc.RefreshRate.Denominator = 1;
+		swapDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		swapDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapDesc.Flags = supportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+		swapDesc.OutputWindow = windowHandle;
+		swapDesc.SampleDesc.Count = 1;
+		swapDesc.SampleDesc.Quality = 0;
+		swapDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapDesc.Windowed = true;
+
+		// Create a DXGI factory, which is what we use to create a swap chain
+		Microsoft::WRL::ComPtr <IDXGIFactory > dxgiFactory;
+		CreateDXGIFactory(IID_PPV_ARGS(dxgiFactory.GetAddressOf()));
+		HRESULT swapResult = dxgiFactory -> CreateSwapChain(
+			CommandQueue.Get(), &swapDesc, SwapChain.GetAddressOf());
+		if (FAILED(swapResult))
+			return swapResult;
+	}
+
+	// Create the fence for basic synchronization
+	{
+		Device -> CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
+		WaitFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
+		WaitFenceCounter = 0;
+	}
+
+	// Overall API has been initialized
 	apiInitialized = true;
 
-	// Call ResizeBuffers(), which will also set up the 
-	// render target view and depth stencil view for the
-	// various buffers we need for rendering. This call 
-	// will also set the appropriate viewport.
+	// Create a descriptor heaps for the back buffers and the depth buffer
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = NumBackBuffers;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		Device -> CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(RTVHeap.GetAddressOf()));
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		Device -> CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(DSVHeap.GetAddressOf()));
+	}
+
+	// Lastly, create the initial back& depth buffers and descriptors for them
 	ResizeBuffers(windowWidth, windowHeight);
 
-#if defined(DEBUG) || defined(_DEBUG)
-	// If we're in debug mode, set up the info queue to
-	// get debug messages we can print to our console
-	Microsoft::WRL::ComPtr<ID3D11Debug> debug;
-	Device->QueryInterface(IID_PPV_ARGS(debug.GetAddressOf()));
-	debug->QueryInterface(IID_PPV_ARGS(InfoQueue.GetAddressOf()));
-#endif
-
+	// Wait for the GPU before we proceed
+	WaitForGPU();
 	return S_OK;
 }
 
