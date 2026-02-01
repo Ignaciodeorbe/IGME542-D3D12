@@ -350,7 +350,7 @@ void Graphics::PrintDebugMessages()
 		InfoQueue->GetMessage(i, 0, &messageSize);
 
 		// Reserve space for this message
-		D3D11_MESSAGE* message = (D3D11_MESSAGE*)malloc(messageSize);
+		D3D12_MESSAGE* message = (D3D12_MESSAGE*)malloc(messageSize);
 		InfoQueue->GetMessage(i, message, &messageSize);
 		
 		// Print and clean up memory
@@ -359,15 +359,15 @@ void Graphics::PrintDebugMessages()
 			// Color code based on severity
 			switch (message->Severity)
 			{
-			case D3D11_MESSAGE_SEVERITY_CORRUPTION:
-			case D3D11_MESSAGE_SEVERITY_ERROR:
+			case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+			case D3D12_MESSAGE_SEVERITY_ERROR:
 				printf("\x1B[91m"); break; // RED
 
-			case D3D11_MESSAGE_SEVERITY_WARNING:
+			case D3D12_MESSAGE_SEVERITY_WARNING:
 				printf("\x1B[93m"); break; // YELLOW
 
-			case D3D11_MESSAGE_SEVERITY_INFO:
-			case D3D11_MESSAGE_SEVERITY_MESSAGE:
+			case D3D12_MESSAGE_SEVERITY_INFO:
+			case D3D12_MESSAGE_SEVERITY_MESSAGE:
 				printf("\x1B[96m"); break; // CYAN
 			}
 
@@ -490,4 +490,64 @@ Microsoft::WRL::ComPtr <ID3D12Resource > Graphics::CreateStaticBuffer(
 	CommandQueue -> ExecuteCommandLists(1, list);
 	WaitForGPU();
 	return finalBuffer;
+}
+
+// --------------------------------------------------------
+// Advances the swap chain back buffer index by 1, wrapping
+// back to zero when necessary. This should occur after
+// presenting the current frame.
+// --------------------------------------------------------
+void Graphics::AdvanceSwapChainIndex()
+{
+	currentBackBufferIndex++;
+	currentBackBufferIndex %= NumBackBuffers;
+}
+
+// --------------------------------------------------------
+// Resets the command allocator and list
+//
+// Always wait before reseting command allocator, as it should not
+// be reset while the GPU is processing a command list
+// --------------------------------------------------------
+void Graphics::ResetAllocatorAndCommandList()
+{
+	CommandAllocator -> Reset();
+	CommandList -> Reset(CommandAllocator.Get(), 0);
+}
+
+// --------------------------------------------------------
+// Closes the current command list and tells the GPU to
+// start executing those commands. We also wait for
+// the GPU to finish this work so we can reset the
+// command allocator (which CANNOT be reset while the
+// GPU is using its commands) and the command list itself.
+// --------------------------------------------------------
+void Graphics::CloseAndExecuteCommandList()
+{
+	// Close the current list and execute it as our only list
+	CommandList -> Close();
+	ID3D12CommandList* lists[] = { CommandList.Get() };
+	CommandQueue -> ExecuteCommandLists(1, lists);
+}
+
+// --------------------------------------------------------
+// Makes our C++ code wait for the GPU to finish its
+// current batch of work before moving on.
+// --------------------------------------------------------
+void Graphics::WaitForGPU()
+{
+	// Update our ongoing fence value (a unique index for each "stop sign")
+	// and then place that value into the GPU's command queue
+	WaitFenceCounter++;
+	CommandQueue -> Signal(WaitFence.Get(), WaitFenceCounter);
+
+	// Check to see if the most recently completed fence value
+	// is less than the one we just set.
+	if (WaitFence -> GetCompletedValue() < WaitFenceCounter)
+	{
+		// Tell the fence to let us know when it's hit, and then
+		// sit and wait until that fence is hit.
+		WaitFence -> SetEventOnCompletion(WaitFenceCounter, WaitFenceEvent);
+		WaitForSingleObject(WaitFenceEvent, INFINITE);
+	}
 }
