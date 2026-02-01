@@ -20,33 +20,8 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game()
 {
-	// Helper methods for loading shaders, creating some basic
-	// geometry to draw and some simple camera matrices.
-	//  - You'll be expanding and/or replacing these later
-	LoadShaders();
+	CreateRootSigAndPipelineState();
 	CreateGeometry();
-
-	// Set initial graphics API state
-	//  - These settings persist until we change them
-	//  - Some of these, like the primitive topology & input layout, probably won't change
-	//  - Others, like setting shaders, will need to be moved elsewhere later
-	{
-		// Tell the input assembler (IA) stage of the pipeline what kind of
-		// geometric primitives (points, lines or triangles) we want to draw.  
-		// Essentially: "What kind of shape should the GPU draw with our vertices?"
-		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		// Ensure the pipeline knows how to interpret all the numbers stored in
-		// the vertex buffer. For this course, all of your vertices will probably
-		// have the same layout, so we can just set this once at startup.
-		Graphics::Context->IASetInputLayout(inputLayout.Get());
-
-		// Set the active vertex and pixel shaders
-		//  - Once you start applying different shaders to different objects,
-		//    these calls will need to happen multiple times per frame
-		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
-		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
-	}
 }
 
 
@@ -58,7 +33,155 @@ Game::Game()
 // --------------------------------------------------------
 Game::~Game()
 {
+	// Wait for the GPU before we shut down
+	Graphics::WaitForGPU();
+}
 
+// --------------------------------------------------------
+// Loads the two basic shaders, then creates the root signature
+// and pipeline state object for our very basic demo.
+// --------------------------------------------------------
+void Game::CreateRootSigAndPipelineState()
+{
+	// Blobs to hold raw shader byte code used in several steps below
+	Microsoft::WRL::ComPtr <ID3DBlob > vertexShaderByteCode;
+	Microsoft::WRL::ComPtr <ID3DBlob > pixelShaderByteCode;
+
+	// Load shaders
+	{
+		// Read our compiled vertex shader code into a blob
+		// - Essentially just "open the file and plop its contents here"
+		D3DReadFileToBlob(
+			FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(
+			FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+	}
+
+	// Input layout
+	const unsigned int inputElementCount = 2;
+	D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
+	{
+		// Create an input layout that describes the vertex format
+		// used by the vertex shader we're using
+		// - This is used by the pipeline to know how to interpret the raw data
+		// sitting inside a vertex buffer
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		inputElements[0].SemanticName = "POSITION";
+		inputElements[0].SemanticIndex = 0;
+
+		// Set up the second element - a color, which is 4 more float values
+		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElements[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		inputElements[1].SemanticName = "COLOR";
+		inputElements[1].SemanticIndex = 0;
+	}
+
+	// Root Signature
+	{
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = 0;
+		rootSig.pParameters = 0;
+		rootSig.NumStaticSamplers = 0;
+		rootSig.pStaticSamplers = 0;
+		ID3DBlob* serializedRootSig = 0;
+		ID3DBlob* errors = 0;
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		// Check for errors during serialization
+		if (errors != 0)
+		{
+			OutputDebugString((wchar_t*)errors -> GetBufferPointer());
+		}
+
+		// Actually create the root sig
+		Graphics::Device -> CreateRootSignature(
+			0,
+			serializedRootSig -> GetBufferPointer(),
+			serializedRootSig -> GetBufferSize(),
+			IID_PPV_ARGS(rootSignature.GetAddressOf()));
+	}
+
+	// Pipeline state
+	{
+		// Describe the pipeline state
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+
+		// -- Input assembler related ---
+		psoDesc.InputLayout.NumElements = inputElementCount;
+		psoDesc.InputLayout.pInputElementDescs = inputElements;
+		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+		// Overall primitive topology type (triangle, line, etc.) is set here
+		// IASetPrimTop() is still used to set list/strip/adj options
+		// Root sig
+		psoDesc.pRootSignature = rootSignature.Get();
+
+		// -- Shaders (VS/PS) ---
+		psoDesc.VS.pShaderBytecode = vertexShaderByteCode -> GetBufferPointer();
+		psoDesc.VS.BytecodeLength = vertexShaderByteCode -> GetBufferSize();
+		psoDesc.PS.pShaderBytecode = pixelShaderByteCode -> GetBufferPointer();
+		psoDesc.PS.BytecodeLength = pixelShaderByteCode -> GetBufferSize();
+
+		// -- Render targets ---
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		psoDesc.SampleDesc.Count = 1;
+		psoDesc.SampleDesc.Quality = 0;
+
+		// -- States ---
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		psoDesc.RasterizerState.DepthClipEnable = true;
+		psoDesc.DepthStencilState.DepthEnable = true;
+		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask =
+			D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		// -- Misc ---
+		psoDesc.SampleMask = 0xffffffff;
+
+		// Create the pipe state object
+		Graphics::Device -> CreateGraphicsPipelineState(
+			&psoDesc,
+			IID_PPV_ARGS(pipelineState.GetAddressOf()));
+	}
+
+	// Set up the viewport and scissor rectangle
+	{
+		// Set up the viewport so we render into the correct
+		// portion of the render target
+		viewport = {};
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.Width = (float)Window::Width();
+		viewport.Height = (float)Window::Height();
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+
+		// Define a scissor rectangle that defines a portion of
+		// the render target for clipping. This is different from
+		// a viewport in that it is applied after the pixel shader.
+		// We need at least one of these, but we're rendering to
+		// the entire window, so it'll be the same size.
+		scissorRect = {};
+		scissorRect.left = 0;
+		scissorRect.top = 0;
+		scissorRect.right = Window::Width();
+		scissorRect.bottom = Window::Height();
+	}
 }
 
 
@@ -171,58 +294,17 @@ void Game::CreateGeometry()
 	unsigned int indices[] = { 0, 1, 2 };
 
 
-	// Create a VERTEX BUFFER
-	// - This holds the vertex data of triangles for a single object
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// First, we need to describe the buffer we want Direct3D to make on the GPU
-		//  - Note that this variable is created on the stack since we only need it once
-		//  - After the buffer is created, this description variable is unnecessary
-		D3D11_BUFFER_DESC vbd = {};
-		vbd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		vbd.ByteWidth = sizeof(Vertex) * 3;       // 3 = number of vertices in the buffer
-		vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER; // Tells Direct3D this is a vertex buffer
-		vbd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		vbd.MiscFlags = 0;
-		vbd.StructureByteStride = 0;
+	// Create the two buffers
+	vertexBuffer = Graphics::CreateStaticBuffer(sizeof(Vertex), ARRAYSIZE(vertices), vertices);
+	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), ARRAYSIZE(indices), indices);
 
-		// Create the proper struct to hold the initial vertex data
-		// - This is how we initially fill the buffer with data
-		// - Essentially, we're specifying a pointer to the data to copy
-		D3D11_SUBRESOURCE_DATA initialVertexData = {};
-		initialVertexData.pSysMem = vertices; // pSysMem = Pointer to System Memory
-
-		// Actually create the buffer on the GPU with the initial data
-		// - Once we do this, we'll NEVER CHANGE DATA IN THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&vbd, &initialVertexData, vertexBuffer.GetAddressOf());
-	}
-
-	// Create an INDEX BUFFER
-	// - This holds indices to elements in the vertex buffer
-	// - This is most useful when vertices are shared among neighboring triangles
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// Describe the buffer, as we did above, with two major differences
-		//  - Byte Width (3 unsigned integers vs. 3 whole vertices)
-		//  - Bind Flag (used as an index buffer instead of a vertex buffer) 
-		D3D11_BUFFER_DESC ibd = {};
-		ibd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		ibd.ByteWidth = sizeof(unsigned int) * 3;	// 3 = number of indices in the buffer
-		ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;	// Tells Direct3D this is an index buffer
-		ibd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		ibd.MiscFlags = 0;
-		ibd.StructureByteStride = 0;
-
-		// Specify the initial data for this buffer, similar to above
-		D3D11_SUBRESOURCE_DATA initialIndexData = {};
-		initialIndexData.pSysMem = indices; // pSysMem = Pointer to System Memory
-
-		// Actually create the buffer with the initial data
-		// - Once we do this, we'll NEVER CHANGE THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&ibd, &initialIndexData, indexBuffer.GetAddressOf());
-	}
+	// Set up the views
+	vbView.StrideInBytes = sizeof(Vertex);
+	vbView.SizeInBytes = sizeof(Vertex) * ARRAYSIZE(vertices);
+	vbView.BufferLocation = vertexBuffer -> GetGPUVirtualAddress();
+	ibView.Format = DXGI_FORMAT_R32_UINT;
+	ibView.SizeInBytes = sizeof(unsigned int) * ARRAYSIZE(indices);
+	ibView.BufferLocation = indexBuffer -> GetGPUVirtualAddress();
 }
 
 
