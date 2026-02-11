@@ -21,6 +21,15 @@ namespace Graphics
 
 		D3D_FEATURE_LEVEL featureLevel{};
 		unsigned int currentBackBufferIndex = 0;
+
+		// Descriptor heap management
+		SIZE_T cbvSrvDescriptorHeapIncrementSize = 0;
+		unsigned int cbvDescriptorOffset = 0;
+
+		// CB upload heap management
+		UINT64 cbUploadHeapSizeInBytes = 0;
+		UINT64 cbUploadHeapOffsetInBytes = 0;
+		void* cbUploadHeapStartAddress = 0;
 	}
 }
 
@@ -193,6 +202,42 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 
 	// Lastly, create the initial back& depth buffers and descriptors for them
 	ResizeBuffers(windowWidth, windowHeight);
+
+
+	// Create const buffer upload heap
+
+	cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
+
+
+	// Describes the upload heap
+	D3D12_HEAP_PROPERTIES props = {};
+	props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	props.CreationNodeMask = 1;
+	props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	props.Type = D3D12_HEAP_TYPE_UPLOAD; // This is an upload instead of deafault
+	props.VisibleNodeMask = 1;
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Alignment = 0;
+	desc.DepthOrArraySize = 1;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Height = 1; 
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.MipLevels = 1;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Width = cbUploadHeapSizeInBytes; // Size of the buffer
+
+	
+	Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, 
+		0,
+		IID_PPV_ARGS(CBUploadHeap.GetAddressOf()));
+
 
 	// Wait for the GPU before we proceed
 	WaitForGPU();
