@@ -411,12 +411,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 	{
 		// Calculate the actual upload address (which we got from mapping the buffer)
 		// Note that this is different than the GPU virtual address needed for the CBV below
-		<CODE HERE>
-			// Perform the mem copy to put new data into this part of the heap
-			<CODE HERE>
-			// Increment the offset and loop back to the beginning if necessary,
-			// allowing us to treat the upload heap like a ring buffer
-			<CODE HERE>
+		BYTE* uploadDestination = (BYTE*)cbUploadHeapStartAddress + cbUploadHeapOffsetInBytes;
+
+		// Perform the mem copy to put new data into this part of the heap
+		memcpy(uploadDestination, data, dataSizeInBytes);
+
+		// Increment the offset and loop back to the beginning if necessary,
+		// allowing us to treat the upload heap like a ring buffer
+		cbUploadHeapOffsetInBytes += reservationSize;
+		if (cbUploadHeapOffsetInBytes >= cbUploadHeapSizeInBytes)
+			cbUploadHeapOffsetInBytes = 0;
 	}
 
 	// Create a CBV for this section of the heap
@@ -424,19 +428,33 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 		// Calculate the CPU and GPU side handles for this descriptor
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
 		// Offset each by based on how many descriptors we've used
 		// Note: cbvDescriptorOffset is a COUNT of descriptors, not bytes so we must calculate the size
-		<CODE HERE>
-			// Describe the constant buffer view that points to our latest chunk of the CB upload heap
-			<CODE HERE>
-			// Create the CBV, which is a lightweight operation in D3D12
-			<CODE HERE>
-			// Increment the offset and loop back to the beginning if necessary
-			// which allows us to treat the descriptor heap as a ring buffer
-			<CODE HERE>
-			// Now that the CBV is ready, we return the GPU handle to it
-			// so it can be set as part of the root signature during drawing
-			return gpuHandle;
+		uint64_t numberOfDescriptorsUsed = cbvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+		cpuHandle.ptr += numberOfDescriptorsUsed;
+		gpuHandle.ptr += numberOfDescriptorsUsed;
+
+		// Describe the constant buffer view that points to our latest chunk of the CB upload heap
+		// Describes the upload heap
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbViewDesc = {};
+		cbViewDesc.BufferLocation = virtualGPUAddress;
+		cbViewDesc.SizeInBytes = reservationSize;
+
+		// Create the CBV, which is a lightweight operation in D3D12
+		Device->CreateConstantBufferView(&cbViewDesc, cpuHandle);
+			
+		// Increment the offset and loop back to the beginning if necessary
+		// which allows us to treat the descriptor heap as a ring buffer
+		cbvDescriptorOffset ++;
+		if (cbvDescriptorOffset >= MaxConstantBuffers)
+		{
+			cbvDescriptorOffset = 0;
+		}
+
+		// Now that the CBV is ready, we return the GPU handle to it
+		// so it can be set as part of the root signature during drawing
+		return gpuHandle;
 	}
 }
 
