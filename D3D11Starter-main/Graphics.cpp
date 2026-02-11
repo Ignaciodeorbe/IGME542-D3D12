@@ -203,11 +203,8 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Lastly, create the initial back& depth buffers and descriptors for them
 	ResizeBuffers(windowWidth, windowHeight);
 
-
 	// Create const buffer upload heap
-
 	cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
-
 
 	// Describes the upload heap
 	D3D12_HEAP_PROPERTIES props = {};
@@ -241,6 +238,16 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Save address to do a memcpy later
 	D3D12_RANGE range{ 0, 0 };
 	CBUploadHeap->Map(0, &range, &cbUploadHeapStartAddress);
+
+
+	// Describes the descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC descProps = {};
+	descProps.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	descProps.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	descProps.NumDescriptors = MaxConstantBuffers;
+	
+
+	Device->CreateDescriptorHeap(&descProps, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
 
 
 	// Wait for the GPU before we proceed
