@@ -224,13 +224,19 @@ void Game::CreateGeometry()
 {
 	// Initializing 3D meshes
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj").c_str());
+	std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath("../../Assets/Models/sphere.obj").c_str());
+	std::shared_ptr<Mesh> torus = std::make_shared<Mesh>(FixPath("../../Assets/Models/torus.obj").c_str());
+
 
 	entities.push_back(GameEntity(cube));
+	entities.push_back(GameEntity(sphere));
+	entities.push_back(GameEntity(torus));
 
-	entities[0].GetTransform()->SetPosition(0, 0, 0);
 
+	entities[0].GetTransform()->SetPosition(-5, 0, 0);
+	entities[1].GetTransform()->SetPosition(0, 0, 0);
+	entities[2].GetTransform()->SetPosition(5, 0, 0);
 
-	
 }
 
 
@@ -282,6 +288,9 @@ void Game::Update(float deltaTime, float totalTime)
 		Window::Quit();
 
 	camera->Update(deltaTime);
+
+	for (auto& e : entities)
+		e.GetTransform()->Rotate(0, deltaTime, 0);
 }
 
 
@@ -346,23 +355,27 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Render all entities
 		for (int i = 0; i < entities.size(); i++)
 		{
+			// Filling VertexShaderExternalData struct with the entity’s world matrix and the camera’s matrices
 			VertexShaderExternalData vertexShaderExternalData = {};
 			vertexShaderExternalData.world = entities[i].GetTransform()->GetWorldMatrix();
 			vertexShaderExternalData.view = camera->ViewMatrix();
 			vertexShaderExternalData.projection = camera->ProjectionMatrix();
 
+			// Copy the VertexShaderExternalData struct to the gpu and getting the handle to the constant buffer 
 			D3D12_GPU_DESCRIPTOR_HANDLE handle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(&vertexShaderExternalData, sizeof(VertexShaderExternalData));
 
+			// Set handle here
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, handle);
 
-
+			// Getting vertex buffer view and index buffer view from this entitys mesh
 			D3D12_VERTEX_BUFFER_VIEW vertexBufferView = entities[i].GetMesh()->GetVertexBufferView();
 			D3D12_INDEX_BUFFER_VIEW indexBufferView = entities[i].GetMesh()->GetIndexBufferView();
 
+			// Setting vertex buffer view and index buffer view
 			Graphics::CommandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			Graphics::CommandList->IASetIndexBuffer(&indexBufferView);
 
-			Graphics::CommandList->DrawIndexedInstanced((UINT)entities[i].GetMesh()->GetIndexCount(), 1, 0, 0, 0);
+			Graphics::CommandList->DrawIndexedInstanced(entities[i].GetMesh()->GetIndexCount(), 1, 0, 0, 0);
 
 		}
 	}
