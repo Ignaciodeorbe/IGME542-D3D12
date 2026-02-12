@@ -223,7 +223,7 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 	// Initializing 3D meshes
-	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj"));
+	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj").c_str());
 
 	entities.push_back(GameEntity(cube));
 
@@ -364,9 +364,6 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			Graphics::CommandList->DrawIndexedInstanced((UINT)entities[i].GetMesh()->GetIndexCount(), 1, 0, 0, 0);
 
-
-
-			entities[i].GetMesh()->Draw();
 		}
 	}
 

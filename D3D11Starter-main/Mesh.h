@@ -41,7 +41,5 @@ public:
 	int GetIndexCount();
 	int GetVertexCount();
 
-	// Method for drawing
-	void Draw();
 
 };
