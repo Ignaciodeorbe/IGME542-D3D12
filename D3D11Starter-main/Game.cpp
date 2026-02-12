@@ -356,8 +356,13 @@ void Game::Draw(float deltaTime, float totalTime)
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, handle);
 
 
-			D3D12_VERTEX_BUFFER_VIEW vertexBufferView = entities[i].GetMesh()->GetVertexBuffer();
-			D3D12_INDEX_BUFFER_VIEW indexBufferView = entities[i].GetMesh()->GetIndexBuffer();
+			D3D12_VERTEX_BUFFER_VIEW vertexBufferView = entities[i].GetMesh()->GetVertexBufferView();
+			D3D12_INDEX_BUFFER_VIEW indexBufferView = entities[i].GetMesh()->GetIndexBufferView();
+
+			Graphics::CommandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			Graphics::CommandList->IASetIndexBuffer(&indexBufferView);
+
+			Graphics::CommandList->DrawIndexedInstanced((UINT)entities[i].GetMesh()->GetIndexCount(), 1, 0, 0, 0);
 
 
 
