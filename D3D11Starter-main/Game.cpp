@@ -225,12 +225,12 @@ void Game::CreateGeometry()
 	// Initializing 3D meshes
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj").c_str());
 	std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath("../../Assets/Models/sphere.obj").c_str());
-	std::shared_ptr<Mesh> torus = std::make_shared<Mesh>(FixPath("../../Assets/Models/torus.obj").c_str());
+	std::shared_ptr<Mesh> helix = std::make_shared<Mesh>(FixPath("../../Assets/Models/helix.obj").c_str());
 
 
 	entities.push_back(GameEntity(cube));
 	entities.push_back(GameEntity(sphere));
-	entities.push_back(GameEntity(torus));
+	entities.push_back(GameEntity(helix));
 
 
 	entities[0].GetTransform()->SetPosition(-5, 0, 0);
@@ -289,8 +289,11 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	for (auto& e : entities)
-		e.GetTransform()->Rotate(0, deltaTime, 0);
+	// Rotate entities
+	for (int i = 0; i < entities.size(); i++)
+	{
+		entities[i].GetTransform()->Rotate(0, deltaTime, 0);
+	}
 }
 
 
