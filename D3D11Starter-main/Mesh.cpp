@@ -250,21 +250,6 @@ int Mesh::GetVertexCount()
 // Methods
 //--------
 
-void Mesh::Draw()
-{
-	// Set buffers in the input assembler
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-	Graphics::Context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-	Graphics::Context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-	// Have DirectX draw 
-	Graphics::Context->DrawIndexed(
-		indexCount,
-		0,     
-		0);    
-}
-
 
 void Mesh::CreateBuffers(Vertex* vertices, int vertexCount, unsigned int* indices, int indexCount)
 {
