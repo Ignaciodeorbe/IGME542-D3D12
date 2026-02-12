@@ -203,6 +203,9 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Lastly, create the initial back& depth buffers and descriptors for them
 	ResizeBuffers(windowWidth, windowHeight);
 
+	cbvSrvDescriptorHeapIncrementSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+
 	// Create const buffer upload heap
 	cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
 
