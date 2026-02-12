@@ -11,10 +11,10 @@ class Mesh
 private:
 
 	// Buffers
-	Microsoft::WRL::ComPtr <ID3D12Resource > vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW vbView{};
-	Microsoft::WRL::ComPtr <ID3D12Resource > indexBuffer;
-	D3D12_INDEX_BUFFER_VIEW ibView{};
+	Microsoft::WRL::ComPtr <ID3D12Resource> vertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW vbView;
+	Microsoft::WRL::ComPtr <ID3D12Resource> indexBuffer;
+	D3D12_INDEX_BUFFER_VIEW ibView;
 
 	//Index and vertex count
 	int indexCount;
@@ -36,8 +36,8 @@ public:
 	~Mesh();
 
 	// Getters for data
-	Microsoft::WRL::ComPtr<ID3D12Resource> GetVertexBuffer();
-	Microsoft::WRL::ComPtr<ID3D12Resource>  GetIndexBuffer();
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
+	D3D12_INDEX_BUFFER_VIEW  GetIndexBufferView();
 	int GetIndexCount();
 	int GetVertexCount();
 

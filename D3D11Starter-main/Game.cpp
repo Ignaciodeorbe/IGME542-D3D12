@@ -4,6 +4,8 @@
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
+#include "BufferStructs.h"
+
 
 #include <DirectXMath.h>
 
@@ -220,7 +222,12 @@ void Game::CreateRootSigAndPipelineState()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
-	
+	// Initializing 3D meshes
+	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj"));
+
+	entities.push_back(GameEntity(cube));
+
+	entities[0].GetTransform()->SetPosition(0, 0, 0);
 
 
 	
@@ -326,17 +333,36 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Root sig (must happen before root descriptor table)
 		Graphics::CommandList -> SetGraphicsRootSignature(rootSignature.Get());
 
+		// Set the descriptor heap for constant buffer views
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+
 		// Set up other commands for rendering
 		Graphics::CommandList -> OMSetRenderTargets(
 			1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
 		Graphics::CommandList -> RSSetViewports(1, &viewport);
 		Graphics::CommandList -> RSSetScissorRects(1, &scissorRect);
-		Graphics::CommandList -> IASetVertexBuffers(0, 1, &vbView);
-		Graphics::CommandList -> IASetIndexBuffer(&ibView);
 		Graphics::CommandList -> IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		// Draw
-		Graphics::CommandList -> DrawIndexedInstanced(3, 1, 0, 0, 0);
+		// Render all entities
+		for (int i = 0; i < entities.size(); i++)
+		{
+			VertexShaderExternalData vertexShaderExternalData = {};
+			vertexShaderExternalData.world = entities[i].GetTransform()->GetWorldMatrix();
+			vertexShaderExternalData.view = camera->ViewMatrix();
+			vertexShaderExternalData.projection = camera->ProjectionMatrix();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE handle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(&vertexShaderExternalData, sizeof(VertexShaderExternalData));
+
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, handle);
+
+
+			D3D12_VERTEX_BUFFER_VIEW vertexBufferView = entities[i].GetMesh()->GetVertexBuffer();
+			D3D12_INDEX_BUFFER_VIEW indexBufferView = entities[i].GetMesh()->GetIndexBuffer();
+
+
+
+			entities[i].GetMesh()->Draw();
+		}
 	}
 
 	// Present

@@ -3,10 +3,12 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <memory>
+#include <vector>
 
 
 #include "Camera.h"
 #include "Mesh.h"
+#include "GameEntity.h"
 
 
 class Game
@@ -22,6 +24,8 @@ public:
 	void Update(float deltaTime, float totalTime);
 	void Draw(float deltaTime, float totalTime);
 	void OnResize();
+
+	std::vector<GameEntity> entities;
 
 private:
 
