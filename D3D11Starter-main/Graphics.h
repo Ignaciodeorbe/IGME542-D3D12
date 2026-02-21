@@ -28,12 +28,18 @@ namespace Graphics
 		void* data,
 		unsigned int dataSizeInBytes);
 
+	// Frame specific synchronization
+	Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence;
+	HANDLE FrameSyncFenceEvent = 0;
+	UINT64 FrameSyncFenceCounters[NumBackBuffers]{};
+
+
 	// Primary D3D12 API objects
 	inline Microsoft::WRL::ComPtr <ID3D12Device >	Device;
 	inline Microsoft::WRL::ComPtr <IDXGISwapChain > SwapChain;
 
 	// Command submission
-	inline Microsoft::WRL::ComPtr <ID3D12CommandAllocator >		CommandAllocator;
+	inline Microsoft::WRL::ComPtr <ID3D12CommandAllocator >		CommandAllocator[NumBackBuffers];
 	inline Microsoft::WRL::ComPtr <ID3D12CommandQueue >			CommandQueue;
 	inline Microsoft::WRL::ComPtr <ID3D12GraphicsCommandList >	CommandList;
 
@@ -64,7 +70,7 @@ namespace Graphics
 		size_t dataStride, size_t dataCount, void* data);
 
 	// Command list & synchronization
-	void ResetAllocatorAndCommandList();
+	void ResetAllocatorAndCommandList(int index);
 	void CloseAndExecuteCommandList();
 	void WaitForGPU();
 
