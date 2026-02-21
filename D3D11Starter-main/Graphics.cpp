@@ -1,5 +1,7 @@
 #include "Graphics.h"
 #include <dxgi1_6.h>
+#include "WICTextureLoader.h"
+#include "ResourceUploadBatch.h"
 
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
@@ -30,6 +32,11 @@ namespace Graphics
 		UINT64 cbUploadHeapSizeInBytes = 0;
 		UINT64 cbUploadHeapOffsetInBytes = 0;
 		void* cbUploadHeapStartAddress = 0;
+
+		unsigned int srvDescriptorOffset = MaxConstantBuffers; // Assume SRVs start after CBVs
+
+		// Texture resources we need to keep alive
+		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures;
 	}
 }
 
@@ -255,7 +262,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	D3D12_DESCRIPTOR_HEAP_DESC descProps = {};
 	descProps.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descProps.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	descProps.NumDescriptors = MaxConstantBuffers;
+	descProps.NumDescriptors = MaxConstantBuffers + MaxTextureDescriptors;
 	
 
 	Device->CreateDescriptorHeap(&descProps, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
@@ -710,4 +717,48 @@ void Graphics::WaitForGPU()
 		WaitFence -> SetEventOnCompletion(WaitFenceCounter, WaitFenceEvent);
 		WaitForSingleObject(WaitFenceEvent, INFINITE);
 	}
+}
+
+
+unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
+{
+	// Helper function from DXTK for uploading a resource
+	// (like a texture) to the appropriate GPU memory
+	DirectX::ResourceUploadBatch upload(Device.Get());
+	upload.Begin();
+
+	// Attempt to create the texture
+	Microsoft::WRL::ComPtr <ID3D12Resource > texture;
+	DirectX::CreateWICTextureFromFile(
+		Device.Get(), upload, file, texture.GetAddressOf(), generateMips);
+
+	// Perform the upload and wait for it to finish before moving on
+	auto finish = upload.End(CommandQueue.Get());
+	finish.wait();
+
+	// Now that we have the texture, save the ComPtr so it doesn’t get cleaned up
+	textures.push_back(texture);
+
+	// Save the index of this descriptor and increment the overall offset
+	unsigned int srvIndex = srvDescriptorOffset;
+	srvDescriptorOffset++;
+
+	// Create the SRV in the descriptor heap at the appropriate offset . When calling
+	// CreateShaderResourceView(), you can use null (zero) for the SRV_DESC param
+	// to get a default SRV that can see all potential subresources of the texture.
+	
+	// Descriptor size
+	UINT descriptorSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	// Offset to index
+	handle.ptr += (SIZE_T)srvIndex * (SIZE_T)descriptorSize;
+
+	// Create srv
+	Device->CreateShaderResourceView(texture.Get(), 0, handle);
+
+
+	// Send back the index of the descriptor
+	return srvIndex;
 }

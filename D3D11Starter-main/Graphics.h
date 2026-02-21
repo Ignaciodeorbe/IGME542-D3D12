@@ -5,6 +5,8 @@
 #include <dxgi1_6.h>
 #include <string>
 #include <wrl/client.h>
+#include <vector>
+
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -18,6 +20,9 @@ namespace Graphics
 	// is 256 bytes or less. Larger buffers are fine, but will
 	// result in fewer buffers in use at any time
 	const unsigned int MaxConstantBuffers = 1000;
+
+	// Maximum number of texture descriptors (SRVs) we can have.
+	const unsigned int MaxTextureDescriptors = 100;
 	
 	// --- GLOBAL VARS ---
 	// 
@@ -85,6 +90,9 @@ namespace Graphics
 	HRESULT Initialize(unsigned int windowWidth, unsigned int windowHeight, HWND windowHandle, bool vsyncIfPossible);
 	void ShutDown();
 	void ResizeBuffers(unsigned int width, unsigned int height);
+
+	unsigned int LoadTexture(const wchar_t* file, bool generateMips = true);
+
 
 	// Debug Layer
 	void PrintDebugMessages();
