@@ -29,9 +29,9 @@ namespace Graphics
 		unsigned int dataSizeInBytes);
 
 	// Frame specific synchronization
-	Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence;
-	HANDLE FrameSyncFenceEvent = 0;
-	UINT64 FrameSyncFenceCounters[NumBackBuffers]{};
+	inline Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence;
+	inline HANDLE FrameSyncFenceEvent = 0;
+	inline UINT64 FrameSyncFenceCounters[NumBackBuffers]{};
 
 
 	// Primary D3D12 API objects

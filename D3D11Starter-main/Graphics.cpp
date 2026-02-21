@@ -408,7 +408,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 {
 	// How much space will we need? Each CBV must point to a chunk of the upload heap that is
 	// a multiple of 256 bytes, so we need to calculate and reserve that amount.
-	SIZE_T reservationSize = (SIZE_T)dataSizeInBytes;
+	UINT reservationSize = dataSizeInBytes;
 	reservationSize = (reservationSize + 255) / 256 * 256; // Integer division trick
 
 	// Ensure this upload will fit in the remaining space. If not, reset to beginning.
