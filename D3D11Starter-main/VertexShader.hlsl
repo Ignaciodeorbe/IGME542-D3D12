@@ -30,10 +30,10 @@ struct VertexToPixel
 	//  |    |                |
 	//  v    v                v
 	float4 screenPosition	: SV_POSITION;	// XYZW position (System Value Position)
-    float2 uv				: TEXCOORD0;
+    float2 uv				: TEXCOORD;
     float3 normal			: NORMAL;
     float3 tangent			: TANGENT;
-    float3 worldPosition	: TEXCOORD1;
+    float3 worldPosition	: POSITION;
 };
 
 // HLSL cbuffer			

@@ -12,10 +12,10 @@ struct VertexToPixel
 	//  |    |                |
 	//  v    v                v
 	float4 screenPosition	: SV_POSITION;
-    float2 uv				: TEXCOORD0;
+    float2 uv				: TEXCOORD;
     float3 normal			: NORMAL;
     float3 tangent			: TANGENT;
-    float3 worldPosition    : TEXCOORD1;
+    float3 worldPosition    : POSITION;
 };
 
 cbuffer PixelData : register(b0)
@@ -29,7 +29,6 @@ cbuffer PixelData : register(b0)
     float2 uvOffset;
 };
 
-Texture2D ResourceDescriptorHeap[100] : register(t0, space0);
 SamplerState BasicSampler : register(s0);
 
 // --------------------------------------------------------
