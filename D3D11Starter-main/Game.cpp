@@ -326,6 +326,56 @@ void Game::CreateGeometry()
 	entities[1].GetTransform()->SetPosition(0, 0, 0);
 	entities[2].GetTransform()->SetPosition(5, 0, 0);
 
+
+
+	//------------------
+	// Initialize lights
+	//------------------
+
+	Light directionalLight1 = {};
+	directionalLight1.Color = XMFLOAT3(1, 1, 1);
+	directionalLight1.Type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight1.Intensity = 0.7f;
+	directionalLight1.Direction = XMFLOAT3(0, -1, 1);
+	lights.push_back(directionalLight1);
+
+	Light directionalLight2 = {};
+	directionalLight2.Color = XMFLOAT3(0, 0, 1);
+	directionalLight2.Type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight2.Intensity = 0.7f;
+	directionalLight2.Direction = XMFLOAT3(0, 0, 1);
+	lights.push_back(directionalLight2);
+
+	Light pointLight1 = {};
+	pointLight1.Color = XMFLOAT3(0, 1, 0);
+	pointLight1.Type = LIGHT_TYPE_POINT;
+	pointLight1.Intensity = 1.0f;
+	pointLight1.Position = XMFLOAT3(5, 5, 0);
+	pointLight1.Range = 10.0f;
+	lights.push_back(pointLight1);
+
+	Light spotLight1 = {};
+	spotLight1.Color = XMFLOAT3(0.5f, 0.5f, 0.5f);
+	spotLight1.Type = LIGHT_TYPE_SPOT;
+	spotLight1.Intensity = 1.0f;
+	spotLight1.Direction = XMFLOAT3(0, -1, 0);
+	spotLight1.Position = XMFLOAT3(-6, 5, 0);
+	spotLight1.Range = 10.0f;
+	spotLight1.SpotInnerAngle = XMConvertToRadians(20.0f);
+	spotLight1.SpotOuterAngle = XMConvertToRadians(40.0f);
+	lights.push_back(spotLight1);
+
+	Light spotLight2 = {};
+	spotLight2.Color = XMFLOAT3(1, 1, 1);
+	spotLight2.Type = LIGHT_TYPE_SPOT;
+	spotLight2.Intensity = 1.0f;
+	spotLight2.Direction = XMFLOAT3(0, -1, 0);
+	spotLight2.Position = XMFLOAT3(-9, 7, 0);
+	spotLight2.Range = 10.0f;
+	spotLight2.SpotInnerAngle = XMConvertToRadians(1.0f);
+	spotLight2.SpotOuterAngle = XMConvertToRadians(10.0f);
+	lights.push_back(spotLight2);
+
 }
 
 
@@ -455,6 +505,15 @@ void Game::Draw(float deltaTime, float totalTime)
 			psData.normalIndex = entities[i].GetMaterial()->GetNormalIndex();
 			psData.roughnessIndex = entities[i].GetMaterial()->GetRoughnessIndex();
 			psData.metalnessIndex = entities[i].GetMaterial()->GetMetalnessIndex();
+
+			psData.cameraPosition = camera->GetTransform().GetPosition();
+
+			psData.lightCount = (int)lights.size();
+
+			for (int l = 0; l < psData.lightCount; l++)
+			{
+				psData.lights[l] = lights[l];
+			}
 
 			D3D12_GPU_DESCRIPTOR_HANDLE psHandle =
 				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(

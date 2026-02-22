@@ -70,7 +70,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
 
 	// Normal mapping
-    input.normal = ComputeNormalMap(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+    //input.normal = ComputeNormalMap(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
     
     
 	// Normalize normals
@@ -78,11 +78,12 @@ float4 main(VertexToPixel input) : SV_TARGET
     input.tangent = normalize(input.tangent);
 	
 	// The variable for all the lighting
-	float3 sceneLighting = surfaceColor * colorTint.rgb;
+	float3 sceneLighting = surfaceColor;
 
+	// Starts at black (no light)
 	float3 totalLight = float3(0, 0, 0);
 
-	for (int i = 0; i < lightsCount; i++)
+    for (int i = 0; i < lightCount; i++)
 	{
 		float3 lightResult = ComputeLighting(
 			lights[i],
@@ -102,9 +103,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 
 
 
-	// Just return the input color
-	// - This color (like most values passing through the rasterizer) is 
-	//   interpolated for each pixel between the corresponding vertices 
-	//   of the triangle we're rendering
-	return float4(pow(sceneLighting, 1.0f / 2.2f), 1.0f);
+    float3 finalColor = totalLight;
+
+    return float4(pow(finalColor, 1.0f / 2.2f), 1.0f);
 }

@@ -19,4 +19,9 @@ struct PixelShaderExternalData
 
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
+
+	DirectX::XMFLOAT3 cameraPosition;
+
+	int lightCount;
+	Light lights[6];
 };

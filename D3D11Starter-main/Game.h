@@ -10,6 +10,7 @@
 #include "Mesh.h"
 #include "GameEntity.h"
 #include "Material.h"
+#include "Lights.h"
 
 
 
@@ -28,6 +29,8 @@ public:
 	void OnResize();
 
 	std::vector<GameEntity> entities;
+	std::vector<Light> lights;
+
 
 private:
 
