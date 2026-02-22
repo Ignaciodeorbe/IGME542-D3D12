@@ -49,6 +49,7 @@ public:
 	// --------
 	// Setters
 	// --------
+	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);

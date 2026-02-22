@@ -42,6 +42,7 @@ unsigned int Material::GetRoughnessIndex() { return roughnessIndex; }
 // --------
 // Setters
 // --------
+void Material::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState) { this->pipelineState = pipelineState; }
 void Material::SetColorTint(XMFLOAT3 tint) { colorTint = tint; }
 void Material::SetUVScale(XMFLOAT2 scale) { uvScale = scale; }
 void Material::SetUVOffset(XMFLOAT2 offset) { uvOffset = offset; }
