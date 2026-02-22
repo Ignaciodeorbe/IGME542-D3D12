@@ -70,7 +70,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
 
 	// Normal mapping
-    //input.normal = ComputeNormalMap(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+    input.normal = ComputeNormalMap(input.normal, input.tangent, NormalMap ,BasicSampler, input.uv);
     
     
 	// Normalize normals
@@ -83,8 +83,10 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Starts at black (no light)
 	float3 totalLight = float3(0, 0, 0);
 
+	// Loop through lights
     for (int i = 0; i < lightCount; i++)
 	{
+		// Call helper function that calculates the lighting
 		float3 lightResult = ComputeLighting(
 			lights[i],
 			input.normal,
@@ -96,13 +98,13 @@ float4 main(VertexToPixel input) : SV_TARGET
 			metalness
 		);
 
-
+		// Add up light
 		totalLight += lightResult;
 
 	}
 
 
-
+	// Final lighting result after summing all lights
     float3 finalColor = totalLight;
 
     return float4(pow(finalColor, 1.0f / 2.2f), 1.0f);

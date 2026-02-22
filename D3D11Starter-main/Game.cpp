@@ -255,11 +255,6 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 
-	if (!pipelineState)
-	{
-		printf("PIPELINE STATE NEVER CREATED\n");
-	}
-
 	// Load textures
 	unsigned int cobblestoneAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_albedo.png").c_str());
 	unsigned int cobblestoneNormals = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_normals.png").c_str());
@@ -494,7 +489,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Render all entities
 		for (int i = 0; i < entities.size(); i++)
 		{
-
+			// Set the pipeline state object
 			Graphics::CommandList->SetPipelineState(
 				entities[i].GetMaterial()->GetPipelineState().Get());
 
@@ -506,10 +501,12 @@ void Game::Draw(float deltaTime, float totalTime)
 			psData.roughnessIndex = entities[i].GetMaterial()->GetRoughnessIndex();
 			psData.metalnessIndex = entities[i].GetMaterial()->GetMetalnessIndex();
 
+			// Send the camera world position to the pixel shader
 			psData.cameraPosition = camera->GetTransform().GetPosition();
 
 			psData.lightCount = (int)lights.size();
 
+			// Send the light data to the pixel shader
 			for (int l = 0; l < psData.lightCount; l++)
 			{
 				psData.lights[l] = lights[l];
