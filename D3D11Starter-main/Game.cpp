@@ -243,15 +243,68 @@ void Game::CreateRootSigAndPipelineState()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
+
+
+	// Load textures
+	unsigned int cobblestoneAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_albedo.png").c_str());
+	unsigned int cobblestoneNormals = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_normals.png").c_str());
+	unsigned int cobblestoneRoughness = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_roughness.png").c_str());
+	unsigned int cobblestoneMetal = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_metal.png").c_str());
+
+	unsigned int bronzeAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/bronze_albedo.png").c_str());
+	unsigned int bronzeNormals = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/bronze_normals.png").c_str());
+	unsigned int bronzeRoughness = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/bronze_roughness.png").c_str());
+	unsigned int bronzeMetal = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/bronze_metal.png").c_str());
+
+	unsigned int scratchedAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/scratched_albedo.png").c_str());
+	unsigned int scratchedNormals = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/scratched_normals.png").c_str());
+	unsigned int scratchedRoughness = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/scratched_roughness.png").c_str());
+	unsigned int scratchedMetal = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/scratched_metal.png").c_str());
+
+	// Create materials
+	std::shared_ptr<Material> cobbleMaterial =
+		std::make_shared<Material>(
+			pipelineState,
+			XMFLOAT3(1, 1, 1),
+			XMFLOAT2(1, 1),
+			XMFLOAT2(0, 0),
+			cobblestoneAlbedo,
+			cobblestoneNormals,
+			cobblestoneRoughness,
+			cobblestoneMetal);
+
+	std::shared_ptr<Material> bronzeMaterial =
+		std::make_shared<Material>(
+			pipelineState,
+			XMFLOAT3(1, 1, 1),
+			XMFLOAT2(1, 1),
+			XMFLOAT2(0, 0),
+			bronzeAlbedo,
+			bronzeNormals,
+			bronzeRoughness,
+			bronzeMetal);
+
+	std::shared_ptr<Material> scratchedMaterial =
+		std::make_shared<Material>(
+			pipelineState,
+			XMFLOAT3(1, 1, 1),
+			XMFLOAT2(1, 1),
+			XMFLOAT2(0, 0),
+			scratchedAlbedo,
+			scratchedNormals,
+			scratchedRoughness,
+			scratchedMetal);
+
+
 	// Initializing 3D meshes
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath("../../Assets/Models/cube.obj").c_str());
 	std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath("../../Assets/Models/sphere.obj").c_str());
 	std::shared_ptr<Mesh> helix = std::make_shared<Mesh>(FixPath("../../Assets/Models/helix.obj").c_str());
 
 
-	entities.push_back(GameEntity(cube));
-	entities.push_back(GameEntity(sphere));
-	entities.push_back(GameEntity(helix));
+	entities.push_back(GameEntity(cube, cobbleMaterial));
+	entities.push_back(GameEntity(sphere, bronzeMaterial));
+	entities.push_back(GameEntity(helix, scratchedMaterial));
 
 
 	entities[0].GetTransform()->SetPosition(-5, 0, 0);

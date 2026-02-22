@@ -24,10 +24,14 @@ private:
 public:
 
 	Material(
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> pipeline,
 		DirectX::XMFLOAT3 tint,
 		DirectX::XMFLOAT2 scale,
 		DirectX::XMFLOAT2 offset,
-		Microsoft::WRL::ComPtr<ID3D12PipelineState> pipeline);
+		unsigned int albedo,
+		unsigned int normal,
+		unsigned int roughness,
+		unsigned int metalness);
 
 	// --------
 	// Getters

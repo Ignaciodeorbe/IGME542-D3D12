@@ -9,6 +9,8 @@
 #include "Camera.h"
 #include "Mesh.h"
 #include "GameEntity.h"
+#include "Material.h"
+
 
 
 class Game

@@ -3,14 +3,25 @@ using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
 // Constructor
-Material::Material(DirectX::XMFLOAT3 tint, DirectX::XMFLOAT2 scale,
-    DirectX::XMFLOAT2 offset, Microsoft::WRL::ComPtr<ID3D12PipelineState> pipeline) :
-    colorTint(tint), uvScale(scale), uvOffset(offset), pipelineState(pipeline)
+Material::Material(
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pipeline,
+    DirectX::XMFLOAT3 tint,
+    DirectX::XMFLOAT2 scale,
+    DirectX::XMFLOAT2 offset,
+    unsigned int albedo,
+    unsigned int normal,
+    unsigned int roughness,
+    unsigned int metalness)
+    :
+    pipelineState(pipeline),
+    colorTint(tint),
+    uvScale(scale),
+    uvOffset(offset),
+    albedoIndex(albedo),
+    normalIndex(normal),
+    roughnessIndex(roughness),
+    metalnessIndex(metalness)
 {
-    albedoIndex = -1;
-    normalIndex = -1;
-    roughnessIndex = -1;
-    metalnessIndex = -1;
 }
 
 
