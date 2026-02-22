@@ -97,5 +97,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="GlobalShaderStructs.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="PBRFunctions.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

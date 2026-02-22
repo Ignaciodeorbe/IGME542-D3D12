@@ -1,4 +1,7 @@
 
+#include "GlobalShaderStructs.hlsli"
+
+
 // Struct representing the data we expect to receive from earlier pipeline stages
 // - Should match the output of our corresponding vertex shader
 // - The name of the struct itself is unimportant
@@ -27,6 +30,12 @@ cbuffer PixelData : register(b0)
 
     float2 uvScale;
     float2 uvOffset;
+
+	float3 cameraPosition;
+
+	int lightCount;
+	Light lights[6];
+
 };
 
 SamplerState BasicSampler : register(s0);
@@ -55,20 +64,47 @@ float4 main(VertexToPixel input) : SV_TARGET
     float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
     float metalness = MetalnessMap.Sample(BasicSampler, input.uv).r;
 	
+	// Assume albedo texture is actually holding specular color where metalness == 1
+	// Note the use of lerp here - metal is generally 0 or 1, but might be in between
+	// because of linear texture sampling, so we lerp the specular color to match
+	float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
+
 	// Normal mapping
-    //input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+    input.normal = ComputeNormalMap(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
     
     
 	// Normalize normals
     input.normal = normalize(input.normal);
     input.tangent = normalize(input.tangent);
 	
-
 	// The variable for all the lighting
-    float3 sceneLighting = surfaceColor;
+	float3 sceneLighting = surfaceColor * colorTint.rgb;
 
-    float3 totalLight = float3(0, 0, 0);
-    
+	float3 totalLight = float3(0, 0, 0);
 
-    return float4(pow(sceneLighting, 1.0f / 2.2f), 1.0f);
+	for (int i = 0; i < lightsCount; i++)
+	{
+		float3 lightResult = ComputeLighting(
+			lights[i],
+			input.normal,
+			surfaceColor,
+			cameraPosition,
+			input.worldPosition,
+			roughness,
+			specularColor,
+			metalness
+		);
+
+
+		totalLight += lightResult;
+
+	}
+
+
+
+	// Just return the input color
+	// - This color (like most values passing through the rasterizer) is 
+	//   interpolated for each pixel between the corresponding vertices 
+	//   of the triangle we're rendering
+	return float4(pow(sceneLighting, 1.0f / 2.2f), 1.0f);
 }
