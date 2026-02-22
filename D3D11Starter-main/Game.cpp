@@ -432,6 +432,27 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Render all entities
 		for (int i = 0; i < entities.size(); i++)
 		{
+
+
+			Graphics::CommandList->SetPipelineState(
+				entities[i].GetMaterial()->GetPipelineState().Get());
+
+			PixelShaderExternalData psData = {};
+			psData.uvScale = entities[i].GetMaterial()->GetUVScale();
+			psData.uvOffset = entities[i].GetMaterial()->GetUVOffset();
+			psData.albedoIndex = entities[i].GetMaterial()->GetAlbedoIndex();
+			psData.normalMapIndex = entities[i].GetMaterial()->GetNormalIndex();
+			psData.roughnessIndex = entities[i].GetMaterial()->GetRoughnessIndex();
+			psData.metalnessIndex = entities[i].GetMaterial()->GetMetalnessIndex();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE psHandle =
+				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					&psData,
+					sizeof(PixelShaderExternalData));
+
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(1, psHandle);
+
+
 			// Filling VertexShaderExternalData struct with the entity’s world matrix and the camera’s matrices
 			VertexShaderExternalData vertexShaderExternalData = {};
 			vertexShaderExternalData.world = entities[i].GetTransform()->GetWorldMatrix();

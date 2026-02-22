@@ -8,3 +8,14 @@ struct VertexShaderExternalData {
 	DirectX::XMFLOAT4X4 projection;
 
 };
+
+struct PixelShaderExternalData
+{
+    DirectX::XMFLOAT2 uvScale;
+    DirectX::XMFLOAT2 uvOffset;
+
+    unsigned int albedoIndex;
+    unsigned int normalMapIndex;
+    unsigned int roughnessIndex;
+    unsigned int metalnessIndex;
+};
