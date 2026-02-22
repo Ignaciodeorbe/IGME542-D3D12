@@ -428,12 +428,11 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Rendering here!
 	{
+		// Set the descriptor heap for constant buffer views
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
 		// Root sig (must happen before root descriptor table)
 		Graphics::CommandList -> SetGraphicsRootSignature(rootSignature.Get());
-
-		// Set the descriptor heap for constant buffer views
-		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
 		// Set up other commands for rendering
 		Graphics::CommandList -> OMSetRenderTargets(
