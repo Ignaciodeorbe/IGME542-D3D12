@@ -94,26 +94,34 @@ void Game::CreateRootSigAndPipelineState()
 
 	// Root Signature
 	{
-		// Define a table of CBV's (constant buffer views)
-		D3D12_DESCRIPTOR_RANGE cbvTable = {};
-		cbvTable.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvTable.NumDescriptors = 1;
-		cbvTable.BaseShaderRegister = 0;
-		cbvTable.RegisterSpace = 0;
-		cbvTable.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		// CBV range for vertex shader
+		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
+		cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeVS.NumDescriptors = 1;
+		cbvRangeVS.BaseShaderRegister = 0;
+		cbvRangeVS.RegisterSpace = 0;
+		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// CBV range for pixel shader
+		D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
+		cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangePS.NumDescriptors = 1;
+		cbvRangePS.BaseShaderRegister = 0;
+		cbvRangePS.RegisterSpace = 0;
+		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Define the root parameter for vertex
 		D3D12_ROOT_PARAMETER rootParams[2] = {};
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvTable;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
 
 		// Define the root parameter for pixel
 		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvTable;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
 
 		// Create a single static sampler (available to all pixel shaders)
 		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
@@ -208,6 +216,7 @@ void Game::CreateRootSigAndPipelineState()
 		Graphics::Device -> CreateGraphicsPipelineState(
 			&psoDesc,
 			IID_PPV_ARGS(pipelineState.GetAddressOf()));
+
 	}
 
 	// Set up the viewport and scissor rectangle
@@ -233,6 +242,8 @@ void Game::CreateRootSigAndPipelineState()
 		scissorRect.right = Window::Width();
 		scissorRect.bottom = Window::Height();
 	}
+
+
 }
 
 
@@ -244,6 +255,10 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 
+	if (!pipelineState)
+	{
+		printf("PIPELINE STATE NEVER CREATED\n");
+	}
 
 	// Load textures
 	unsigned int cobblestoneAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_albedo.png").c_str());
@@ -413,8 +428,6 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Rendering here!
 	{
-		// Set overall pipeline state
-		Graphics::CommandList -> SetPipelineState(pipelineState.Get());
 
 		// Root sig (must happen before root descriptor table)
 		Graphics::CommandList -> SetGraphicsRootSignature(rootSignature.Get());
@@ -433,7 +446,6 @@ void Game::Draw(float deltaTime, float totalTime)
 		for (int i = 0; i < entities.size(); i++)
 		{
 
-
 			Graphics::CommandList->SetPipelineState(
 				entities[i].GetMaterial()->GetPipelineState().Get());
 
@@ -441,7 +453,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			psData.uvScale = entities[i].GetMaterial()->GetUVScale();
 			psData.uvOffset = entities[i].GetMaterial()->GetUVOffset();
 			psData.albedoIndex = entities[i].GetMaterial()->GetAlbedoIndex();
-			psData.normalMapIndex = entities[i].GetMaterial()->GetNormalIndex();
+			psData.normalIndex = entities[i].GetMaterial()->GetNormalIndex();
 			psData.roughnessIndex = entities[i].GetMaterial()->GetRoughnessIndex();
 			psData.metalnessIndex = entities[i].GetMaterial()->GetMetalnessIndex();
 
@@ -456,6 +468,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			// Filling VertexShaderExternalData struct with the entity’s world matrix and the camera’s matrices
 			VertexShaderExternalData vertexShaderExternalData = {};
 			vertexShaderExternalData.world = entities[i].GetTransform()->GetWorldMatrix();
+			vertexShaderExternalData.worldInverseTranspose = entities[i].GetTransform()->GetWorldInverseTranspose();
 			vertexShaderExternalData.view = camera->ViewMatrix();
 			vertexShaderExternalData.projection = camera->ProjectionMatrix();
 

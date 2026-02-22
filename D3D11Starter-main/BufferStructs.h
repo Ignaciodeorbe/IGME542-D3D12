@@ -4,6 +4,7 @@
 
 struct VertexShaderExternalData {
 	DirectX::XMFLOAT4X4 world;
+    DirectX::XMFLOAT4X4 worldInverseTranspose;
 	DirectX::XMFLOAT4X4 view;
 	DirectX::XMFLOAT4X4 projection;
 
@@ -11,11 +12,11 @@ struct VertexShaderExternalData {
 
 struct PixelShaderExternalData
 {
-    DirectX::XMFLOAT2 uvScale;
-    DirectX::XMFLOAT2 uvOffset;
+	unsigned int albedoIndex;
+	unsigned int normalIndex;
+	unsigned int roughnessIndex;
+	unsigned int metalnessIndex;
 
-    unsigned int albedoIndex;
-    unsigned int normalMapIndex;
-    unsigned int roughnessIndex;
-    unsigned int metalnessIndex;
+	DirectX::XMFLOAT2 uvScale;
+	DirectX::XMFLOAT2 uvOffset;
 };

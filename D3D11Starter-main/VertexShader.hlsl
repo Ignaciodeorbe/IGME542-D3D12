@@ -30,12 +30,17 @@ struct VertexToPixel
 	//  |    |                |
 	//  v    v                v
 	float4 screenPosition	: SV_POSITION;	// XYZW position (System Value Position)
+    float2 uv				: TEXCOORD0;
+    float3 normal			: NORMAL;
+    float3 tangent			: TANGENT;
+    float3 worldPosition	: TEXCOORD1;
 };
 
 // HLSL cbuffer			
 cbuffer ConstantBuffer : register(b0)
 {
 	float4x4 world;
+    float4x4 worldInverseTranspose;
 	float4x4 view;
 	float4x4 projection;
 
@@ -55,6 +60,11 @@ VertexToPixel main( VertexShaderInput input )
 
 	// Multiplying the 3 matricies together
 	matrix wvp = mul(projection, mul(view, world));
+	
+	// Make world position
+    float4 positionInWorld = mul(world, float4(input.localPosition, 1.0f));
+    output.worldPosition = positionInWorld.xyz;
+
 
 	// Here we're essentially passing the input position directly through to the next
 	// stage (rasterizer), though it needs to be a 4-component vector now.  
@@ -66,7 +76,10 @@ VertexToPixel main( VertexShaderInput input )
 	//   a perspective projection matrix, which we'll get to in the future).
 	output.screenPosition = mul(wvp, float4(input.localPosition, 1.0f));
 
-
+    output.uv = input.uv;
+    output.normal = mul((float3x3) worldInverseTranspose, input.normal);
+    output.tangent = mul((float3x3) world, input.tangent);
+	
 	// Whatever we return will make its way through the pipeline to the
 	// next programmable stage we're using (the pixel shader for now)
 	return output;
