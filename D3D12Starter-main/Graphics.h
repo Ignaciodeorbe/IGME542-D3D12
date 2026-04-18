@@ -64,6 +64,15 @@ namespace Graphics
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr <ID3D12InfoQueue > InfoQueue;
 
+	// Skybox
+	unsigned int CreateCubemap(
+		const wchar_t* right,
+		const wchar_t* left,
+		const wchar_t* up,
+		const wchar_t* down,
+		const wchar_t* front,
+		const wchar_t* back);
+
 	// Getters
 	unsigned int SwapChainIndex();
 
