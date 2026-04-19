@@ -1,9 +1,10 @@
 #include "GlobalShaderStructs.hlsli"
 
+cbuffer SkyData : register(b1)
+{
+    uint cubemapIndex;
+}
 
-ConstantBuffer<SkyPixelShaderData> psData : register(b1);
-
-SamplerState BasicSampler : register(s0);
 
 struct VertexToPixel_Sky
 {
@@ -11,8 +12,10 @@ struct VertexToPixel_Sky
     float3 sampleDir : TEXCOORD;
 };
 
+SamplerState BasicSampler : register(s0);
+
 float4 main(VertexToPixel_Sky input) : SV_TARGET
 {
-    TextureCube SkyboxTexture = ResourceDescriptorHeap[psData.cubemapIndex];
-	return SkyboxTexture.Sample(BasicSampler, input.sampleDir);
+    TextureCube skyTexture = ResourceDescriptorHeap[cubemapIndex];
+    return skyTexture.Sample(BasicSampler, input.sampleDir);
 }

@@ -1,6 +1,10 @@
 #include "GlobalShaderStructs.hlsli"
 
-ConstantBuffer<SkyVertexShaderData> vsData : register(b0);
+cbuffer SkyData : register(b0)
+{
+    matrix view;
+    matrix projection;
+}
 
 struct VertexShaderInput
 {
@@ -18,27 +22,16 @@ struct VertexToPixel_Sky
 
 VertexToPixel_Sky main(VertexShaderInput input)
 {
-	// Set up output struct
-	VertexToPixel_Sky output;
+    VertexToPixel_Sky output;
 
-	// Copy of view matrix amd translations set to 0
-    matrix viewNoTranslation = vsData.view;
-	viewNoTranslation._14 = 0;
-	viewNoTranslation._24 = 0;
-	viewNoTranslation._34 = 0;
+    matrix viewNoTranslation = view;
+    viewNoTranslation._14 = 0;
+    viewNoTranslation._24 = 0;
+    viewNoTranslation._34 = 0;
 
-	// Multiplying projection and view matrix
-    matrix projView = mul(vsData.projection, viewNoTranslation);
-
-	// Apply projection and updated view matrix
-	output.position = mul(projView, float4(input.localPosition, 1.0f));
-
-	// change depth of each vertex 1.0
-	output.position.z = output.position.w;
-
-	// Compute sample direction 
-	output.sampleDir = input.localPosition;
-
-
-	return output;
+    matrix projView = mul(projection, viewNoTranslation);
+    output.position = mul(projView, float4(input.localPosition, 1.0f));
+    output.position.z = output.position.w;
+    output.sampleDir = input.localPosition;
+    return output;
 }
