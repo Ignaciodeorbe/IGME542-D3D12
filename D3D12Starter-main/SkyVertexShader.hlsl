@@ -2,6 +2,20 @@
 
 ConstantBuffer<SkyVertexShaderData> vsData : register(b0);
 
+struct VertexShaderInput
+{
+    float3 localPosition : POSITION;
+    float2 uv : TEXCOORD;
+    float3 normal : NORMAL;
+    float3 tangent : TANGENT;
+};
+
+struct VertexToPixel_Sky
+{
+    float4 position : SV_POSITION;
+    float3 sampleDir : TEXCOORD;
+};
+
 VertexToPixel_Sky main(VertexShaderInput input)
 {
 	// Set up output struct
