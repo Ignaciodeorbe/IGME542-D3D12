@@ -1,10 +1,6 @@
 #include "GlobalShaderStructs.hlsli"
 
-cbuffer ConstantBuffer : register(b0)
-{
-	float4x4 view;
-	float4x4 projection;
-}
+ConstantBuffer<SkyVertexShaderData> vsData : register(b0);
 
 VertexToPixel_Sky main(VertexShaderInput input)
 {
@@ -12,13 +8,13 @@ VertexToPixel_Sky main(VertexShaderInput input)
 	VertexToPixel_Sky output;
 
 	// Copy of view matrix amd translations set to 0
-	matrix viewNoTranslation = view;
+    matrix viewNoTranslation = vsData.view;
 	viewNoTranslation._14 = 0;
 	viewNoTranslation._24 = 0;
 	viewNoTranslation._34 = 0;
 
 	// Multiplying projection and view matrix
-	matrix projView = mul(projection, viewNoTranslation);
+    matrix projView = mul(vsData.projection, viewNoTranslation);
 
 	// Apply projection and updated view matrix
 	output.position = mul(projView, float4(input.localPosition, 1.0f));

@@ -62,6 +62,7 @@ void Game::CreateRootSigAndPipelineState()
 			FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 	}
 
+
 	// Input layout
 	const unsigned int inputElementCount = 4;
 	D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};

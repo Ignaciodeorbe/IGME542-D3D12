@@ -3,6 +3,20 @@
 #include "PBRFunctions.hlsli"
 
 
+//----------------
+// Skybox Structs
+//----------------
+struct SkyVertexShaderData
+{
+    matrix view;
+    matrix projection;
+};
+
+struct SkyPixelShaderData
+{
+    uint cubemapIndex;
+};
+
 
 //----------------
 // Lighting Struct

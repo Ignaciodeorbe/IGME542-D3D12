@@ -1,17 +1,16 @@
 #pragma once
 
-#include <memory>
 #include <wrl/client.h>
 #include <d3d12.h>
+#include <DirectXMath.h>
+#include <memory>
+
 #include "Mesh.h"
 #include "Camera.h"
-
-
-
+#include "Graphics.h"
 
 class Skybox
 {
-
 public:
 
     Skybox(
@@ -31,17 +30,16 @@ public:
 
 private:
 
-    // Cubemap SRV index in the bindless descriptor heap
     unsigned int cubemapSRVIndex;
 
-    // Cube mesh used to render the sky
     std::shared_ptr<Mesh> cubeMesh;
 
     // PSO and root signature
-    Microsoft::WRL::ComPtr<ID3D12PipelineState>  pipelineState;
-    Microsoft::WRL::ComPtr<ID3D12RootSignature>  rootSignature;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 
-    void CreateSkyPSO(
+    // Helper function
+    void CreateSkyboxPSO(
         Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderBytecode,
         Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderBytecode);
 };
