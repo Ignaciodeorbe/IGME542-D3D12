@@ -11,6 +11,7 @@
 #include "GameEntity.h"
 #include "Material.h"
 #include "Lights.h"
+#include "Skybox.h"
 
 
 
@@ -30,6 +31,8 @@ public:
 
 	std::vector<GameEntity> entities;
 	std::vector<Light> lights;
+	std::shared_ptr<Skybox> skybox;
+
 
 
 private:

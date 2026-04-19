@@ -5,6 +5,7 @@
 #include "PathHelpers.h"
 #include "Window.h"
 #include "BufferStructs.h"
+#include "Skybox.h"
 
 
 #include <DirectXMath.h>
@@ -372,6 +373,26 @@ void Game::CreateGeometry()
 	spotLight2.SpotOuterAngle = XMConvertToRadians(10.0f);
 	lights.push_back(spotLight2);
 
+
+
+	// ------------------
+	// Create skybox
+	// ------------------
+	Microsoft::WRL::ComPtr<ID3DBlob> skyVS;
+	Microsoft::WRL::ComPtr<ID3DBlob> skyPS;
+	D3DReadFileToBlob(FixPath(L"SkyVertexShader.cso").c_str(), skyVS.GetAddressOf());
+	D3DReadFileToBlob(FixPath(L"SkyPixelShader.cso").c_str(), skyPS.GetAddressOf());
+
+	skybox = std::make_shared<Skybox>(
+		FixPath(L"../../Assets/SkyBoxes/right.png").c_str(),
+		FixPath(L"../../Assets/SkyBoxes/left.png").c_str(),
+		FixPath(L"../../Assets/SkyBoxes/up.png").c_str(),
+		FixPath(L"../../Assets/SkyBoxes/down.png").c_str(),
+		FixPath(L"../../Assets/SkyBoxes/front.png").c_str(),
+		FixPath(L"../../Assets/SkyBoxes/back.png").c_str(),
+		cube,
+		skyVS,
+		skyPS);
 }
 
 
@@ -545,6 +566,9 @@ void Game::Draw(float deltaTime, float totalTime)
 			Graphics::CommandList->DrawIndexedInstanced(entities[i].GetMesh()->GetIndexCount(), 1, 0, 0, 0);
 
 		}
+
+		// Draw skybox
+		skybox->Draw(camera);
 	}
 
 	// Present
