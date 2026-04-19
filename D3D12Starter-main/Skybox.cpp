@@ -65,8 +65,8 @@ void Skybox::InitRenderStates()
     Microsoft::WRL::ComPtr<ID3DBlob> vs;
     Microsoft::WRL::ComPtr<ID3DBlob> ps;
 
-    D3DReadFileToBlob(FixPath(L"SkyVS.cso").c_str(), vs.GetAddressOf());
-    D3DReadFileToBlob(FixPath(L"SkyPS.cso").c_str(), ps.GetAddressOf());
+    D3DReadFileToBlob(FixPath(L"SkyVertexShader.cso").c_str(), vs.GetAddressOf());
+    D3DReadFileToBlob(FixPath(L"SkyPixelShader.cso").c_str(), ps.GetAddressOf());
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.pRootSignature = rootSignature.Get();
