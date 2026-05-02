@@ -12,5 +12,5 @@ float4 main(VertexOutput input) : SV_TARGET
 {
     float4 scene = sceneTexture.Sample(basicSampler, input.uv);
     float4 bloom = bloomTexture.Sample(basicSampler, input.uv);
-    return scene + bloom * 0.8f;
+    return scene + bloom * 0.1f;
 }

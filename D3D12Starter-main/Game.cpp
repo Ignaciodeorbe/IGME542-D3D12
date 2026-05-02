@@ -582,8 +582,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		float color[] = { 0.4f, 0.6f, 0.75f, 1.0f };
 
 		// Clear the RTV
-		Graphics::CommandList -> ClearRenderTargetView(
-			Graphics::RTVHandles[Graphics::SwapChainIndex()],
+		Graphics::CommandList->ClearRenderTargetView(
+			Graphics::BloomRTV,
 			color,
 			0, 0); // No scissor rectangles
 
@@ -606,8 +606,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList -> SetGraphicsRootSignature(rootSignature.Get());
 
 		// Set up other commands for rendering
-		Graphics::CommandList -> OMSetRenderTargets(
-			1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+		Graphics::CommandList->OMSetRenderTargets(
+			1, &Graphics::BloomRTV, true, &Graphics::DSVHandle);
 		Graphics::CommandList -> RSSetViewports(1, &viewport);
 		Graphics::CommandList -> RSSetScissorRects(1, &scissorRect);
 		Graphics::CommandList -> IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -673,6 +673,75 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Draw skybox
 		skybox->Draw(camera);
+
+		// ---- BLOOM PASSES ----
+		{
+			// Transition BloomRenderTarget from render target to shader resource
+			D3D12_RESOURCE_BARRIER toSRV = {};
+			toSRV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			toSRV.Transition.pResource = Graphics::BloomRenderTarget.Get();
+			toSRV.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			toSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			toSRV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			Graphics::CommandList->ResourceBarrier(1, &toSRV);
+
+			// Transition BloomBlurTarget to render target (we'll write bright pass here)
+			D3D12_RESOURCE_BARRIER blurToRTV = {};
+			blurToRTV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			blurToRTV.Transition.pResource = Graphics::BloomBlurTarget.Get();
+			blurToRTV.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			blurToRTV.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			blurToRTV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			Graphics::CommandList->ResourceBarrier(1, &blurToRTV);
+
+			// --- Bright pass: read BloomRenderTarget, write to BloomBlurTarget ---
+			float clearBlack[] = { 0,0,0,1 };
+			Graphics::CommandList->ClearRenderTargetView(Graphics::BloomBlurRTV, clearBlack, 0, 0);
+			Graphics::CommandList->OMSetRenderTargets(1, &Graphics::BloomBlurRTV, true, nullptr);
+			Graphics::CommandList->SetGraphicsRootSignature(bloomRootSignature.Get());
+			Graphics::CommandList->SetPipelineState(brightPassPSO.Get());
+			Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			// Bind BloomRenderTarget SRV to slot 0
+			D3D12_GPU_DESCRIPTOR_HANDLE bloomSceneSRV = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+			bloomSceneSRV.ptr += (SIZE_T)Graphics::BloomSRVIndex * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, bloomSceneSRV);
+
+			Graphics::CommandList->DrawInstanced(3, 1, 0, 0); // Fullscreen triangle
+
+			// Transition BloomBlurTarget to SRV for composite
+			D3D12_RESOURCE_BARRIER blurToSRV = {};
+			blurToSRV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			blurToSRV.Transition.pResource = Graphics::BloomBlurTarget.Get();
+			blurToSRV.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			blurToSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			blurToSRV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			Graphics::CommandList->ResourceBarrier(1, &blurToSRV);
+
+			// Transition backbuffer to render target
+			D3D12_RESOURCE_BARRIER bbToRTV = {};
+			bbToRTV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			bbToRTV.Transition.pResource = Graphics::BackBuffers[Graphics::SwapChainIndex()].Get();
+			bbToRTV.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			bbToRTV.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			bbToRTV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			Graphics::CommandList->ResourceBarrier(1, &bbToRTV);
+
+			// --- Composite pass: read scene + bright pass, write to backbuffer ---
+			Graphics::CommandList->ClearRenderTargetView(Graphics::RTVHandles[Graphics::SwapChainIndex()], clearBlack, 0, 0);
+			Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, nullptr);
+			Graphics::CommandList->SetPipelineState(compositePSO.Get());
+
+			// Bind BloomRenderTarget (scene) to slot 0
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, bloomSceneSRV);
+
+			// Bind BloomBlurTarget (bright pass result) to slot 1
+			D3D12_GPU_DESCRIPTOR_HANDLE bloomBlurSRV = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+			bloomBlurSRV.ptr += (SIZE_T)Graphics::BloomBlurSRVIndex * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(1, bloomBlurSRV);
+
+			Graphics::CommandList->DrawInstanced(3, 1, 0, 0);
+		}
 	}
 
 	// Present
