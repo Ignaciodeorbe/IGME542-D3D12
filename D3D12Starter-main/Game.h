@@ -56,6 +56,11 @@ private:
 	Microsoft::WRL::ComPtr <ID3D12Resource > indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW ibView{};
 
+	// Bloom
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> bloomRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> brightPassPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> compositePSO;
+
 	// Other graphics data
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};

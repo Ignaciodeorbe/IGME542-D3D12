@@ -246,6 +246,110 @@ void Game::CreateRootSigAndPipelineState()
 	}
 
 
+	// Bloom root signature
+	{
+		// SRV range for slot t0
+		D3D12_DESCRIPTOR_RANGE srvRange0 = {};
+		srvRange0.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange0.NumDescriptors = 1;
+		srvRange0.BaseShaderRegister = 0; // t0
+		srvRange0.RegisterSpace = 0;
+		srvRange0.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// SRV range for slot t1
+		D3D12_DESCRIPTOR_RANGE srvRange1 = {};
+		srvRange1.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange1.NumDescriptors = 1;
+		srvRange1.BaseShaderRegister = 1; // t1
+		srvRange1.RegisterSpace = 0;
+		srvRange1.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		D3D12_ROOT_PARAMETER bloomParams[2] = {};
+		bloomParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		bloomParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		bloomParams[0].DescriptorTable.NumDescriptorRanges = 1;
+		bloomParams[0].DescriptorTable.pDescriptorRanges = &srvRange0;
+
+		bloomParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		bloomParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		bloomParams[1].DescriptorTable.NumDescriptorRanges = 1;
+		bloomParams[1].DescriptorTable.pDescriptorRanges = &srvRange1;
+
+		// Clamp/linear sampler for post process
+		D3D12_STATIC_SAMPLER_DESC clampSampler = {};
+		clampSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		clampSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		clampSampler.ShaderRegister = 0; // s0
+		clampSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+		D3D12_ROOT_SIGNATURE_DESC bloomRootDesc = {};
+		bloomRootDesc.NumParameters = ARRAYSIZE(bloomParams);
+		bloomRootDesc.pParameters = bloomParams;
+		bloomRootDesc.NumStaticSamplers = 1;
+		bloomRootDesc.pStaticSamplers = &clampSampler;
+		bloomRootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+		ID3DBlob* serializedBloomSig = 0;
+		ID3DBlob* bloomErrors = 0;
+		D3D12SerializeRootSignature(
+			&bloomRootDesc,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedBloomSig,
+			&bloomErrors);
+
+		if (bloomErrors)
+			OutputDebugString((wchar_t*)bloomErrors->GetBufferPointer());
+
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedBloomSig->GetBufferPointer(),
+			serializedBloomSig->GetBufferSize(),
+			IID_PPV_ARGS(bloomRootSignature.GetAddressOf()));
+	}
+
+
+	// Bloom PSOs
+	{
+		Microsoft::WRL::ComPtr<ID3DBlob> fullscreenVS;
+		Microsoft::WRL::ComPtr<ID3DBlob> brightPassPS;
+		Microsoft::WRL::ComPtr<ID3DBlob> compositePS;
+
+		D3DReadFileToBlob(FixPath(L"FullscreenVS.cso").c_str(), fullscreenVS.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"BloomBrightPassPS.cso").c_str(), brightPassPS.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"BloomCompositePS.cso").c_str(), compositePS.GetAddressOf());
+
+		// Shared PSO desc for all bloom passes
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC bloomPSODesc = {};
+		bloomPSODesc.pRootSignature = bloomRootSignature.Get();
+		bloomPSODesc.VS.pShaderBytecode = fullscreenVS->GetBufferPointer();
+		bloomPSODesc.VS.BytecodeLength = fullscreenVS->GetBufferSize();
+		bloomPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		bloomPSODesc.NumRenderTargets = 1;
+		bloomPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		bloomPSODesc.SampleDesc.Count = 1;
+		bloomPSODesc.SampleDesc.Quality = 0;
+		bloomPSODesc.SampleMask = 0xffffffff;
+		bloomPSODesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		bloomPSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // No culling for fullscreen
+		bloomPSODesc.DepthStencilState.DepthEnable = false; // No depth for post process
+		bloomPSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		bloomPSODesc.InputLayout.NumElements = 0; // No input layout needed
+		bloomPSODesc.InputLayout.pInputElementDescs = nullptr;
+
+		// Bright pass PSO
+		bloomPSODesc.PS.pShaderBytecode = brightPassPS->GetBufferPointer();
+		bloomPSODesc.PS.BytecodeLength = brightPassPS->GetBufferSize();
+		Graphics::Device->CreateGraphicsPipelineState(&bloomPSODesc, IID_PPV_ARGS(brightPassPSO.GetAddressOf()));
+
+		// Composite PSO
+		bloomPSODesc.PS.pShaderBytecode = compositePS->GetBufferPointer();
+		bloomPSODesc.PS.BytecodeLength = compositePS->GetBufferSize();
+		Graphics::Device->CreateGraphicsPipelineState(&bloomPSODesc, IID_PPV_ARGS(compositePSO.GetAddressOf()));
+	}
+
 }
 
 
