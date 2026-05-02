@@ -73,6 +73,17 @@ namespace Graphics
 		const wchar_t* front,
 		const wchar_t* back);
 
+	// Bloom 
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> BloomRenderTarget;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> BloomBlurTarget;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE BloomRTV;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE BloomBlurRTV;
+	inline unsigned int BloomSRVIndex;
+	inline unsigned int BloomBlurSRVIndex;
+
+	static void CreateBloomBuffers(unsigned int width, unsigned int height);
+
+
 	// Getters
 	unsigned int SwapChainIndex();
 

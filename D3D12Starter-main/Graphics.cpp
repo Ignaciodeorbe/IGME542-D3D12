@@ -206,7 +206,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Create a descriptor heaps for the back buffers and the depth buffer
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = NumBackBuffers;
+		rtvHeapDesc.NumDescriptors = NumBackBuffers + 2;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		Device -> CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(RTVHeap.GetAddressOf()));
 		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
@@ -266,6 +266,9 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	
 
 	Device->CreateDescriptorHeap(&descProps, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
+
+
+	CreateBloomBuffers(windowWidth, windowHeight);
 
 
 	// Wait for the GPU before we proceed
@@ -399,6 +402,88 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 		// Wait for the GPU before we proceed
 		WaitForGPU();
 	}
+
+}
+
+
+void Graphics::CreateBloomBuffers(unsigned int width, unsigned int height)
+{
+	// Reset existing resources if they exist (for resize)
+	BloomRenderTarget.Reset();
+	BloomBlurTarget.Reset();
+
+	D3D12_HEAP_PROPERTIES props = {};
+	props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	props.CreationNodeMask = 1;
+	props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	props.Type = D3D12_HEAP_TYPE_DEFAULT;
+	props.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.Alignment = 0;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Height = height;
+	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	texDesc.MipLevels = 1;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Width = width;
+
+	D3D12_CLEAR_VALUE clearVal = {};
+	clearVal.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clearVal.Color[0] = 0.0f;
+	clearVal.Color[1] = 0.0f;
+	clearVal.Color[2] = 0.0f;
+	clearVal.Color[3] = 1.0f;
+
+	// Create BloomRenderTarget (scene renders here first)
+	Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&clearVal,
+		IID_PPV_ARGS(BloomRenderTarget.GetAddressOf()));
+
+	// Create BloomBlurTarget (bright pass / blur result goes here)
+	Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&clearVal,
+		IID_PPV_ARGS(BloomBlurTarget.GetAddressOf()));
+
+	// --- Create RTVs ---
+	SIZE_T rtvDescriptorSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	// BloomRenderTarget RTV goes at slot NumBackBuffers
+	BloomRTV = RTVHeap->GetCPUDescriptorHandleForHeapStart();
+	BloomRTV.ptr += rtvDescriptorSize * NumBackBuffers;
+	Device->CreateRenderTargetView(BloomRenderTarget.Get(), 0, BloomRTV);
+
+	// BloomBlurTarget RTV goes at slot NumBackBuffers + 1
+	BloomBlurRTV = RTVHeap->GetCPUDescriptorHandleForHeapStart();
+	BloomBlurRTV.ptr += rtvDescriptorSize * (NumBackBuffers + 1);
+	Device->CreateRenderTargetView(BloomBlurTarget.Get(), 0, BloomBlurRTV);
+
+	// --- Create SRVs ---
+	UINT srvDescriptorSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	// BloomRenderTarget SRV
+	BloomSRVIndex = srvDescriptorOffset++;
+	D3D12_CPU_DESCRIPTOR_HANDLE bloomSRVHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	bloomSRVHandle.ptr += (SIZE_T)BloomSRVIndex * srvDescriptorSize;
+	Device->CreateShaderResourceView(BloomRenderTarget.Get(), 0, bloomSRVHandle);
+
+	// BloomBlurTarget SRV
+	BloomBlurSRVIndex = srvDescriptorOffset++;
+	D3D12_CPU_DESCRIPTOR_HANDLE bloomBlurSRVHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	bloomBlurSRVHandle.ptr += (SIZE_T)BloomBlurSRVIndex * srvDescriptorSize;
+	Device->CreateShaderResourceView(BloomBlurTarget.Get(), 0, bloomBlurSRVHandle);
 }
 
 
