@@ -408,7 +408,6 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 
 void Graphics::CreateBloomBuffers(unsigned int width, unsigned int height)
 {
-	// Reset existing resources if they exist (for resize)
 	BloomRenderTarget.Reset();
 	BloomBlurTarget.Reset();
 
@@ -439,7 +438,7 @@ void Graphics::CreateBloomBuffers(unsigned int width, unsigned int height)
 	clearVal.Color[2] = 0.0f;
 	clearVal.Color[3] = 1.0f;
 
-	// Create BloomRenderTarget (scene renders here first)
+	// Create BloomRenderTarget
 	Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
@@ -448,7 +447,7 @@ void Graphics::CreateBloomBuffers(unsigned int width, unsigned int height)
 		&clearVal,
 		IID_PPV_ARGS(BloomRenderTarget.GetAddressOf()));
 
-	// Create BloomBlurTarget (bright pass / blur result goes here)
+	// Create BloomBlurTarget
 	Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
@@ -457,29 +456,25 @@ void Graphics::CreateBloomBuffers(unsigned int width, unsigned int height)
 		&clearVal,
 		IID_PPV_ARGS(BloomBlurTarget.GetAddressOf()));
 
-	// --- Create RTVs ---
+	// Create RTVs
 	SIZE_T rtvDescriptorSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	// BloomRenderTarget RTV goes at slot NumBackBuffers
 	BloomRTV = RTVHeap->GetCPUDescriptorHandleForHeapStart();
 	BloomRTV.ptr += rtvDescriptorSize * NumBackBuffers;
 	Device->CreateRenderTargetView(BloomRenderTarget.Get(), 0, BloomRTV);
 
-	// BloomBlurTarget RTV goes at slot NumBackBuffers + 1
 	BloomBlurRTV = RTVHeap->GetCPUDescriptorHandleForHeapStart();
 	BloomBlurRTV.ptr += rtvDescriptorSize * (NumBackBuffers + 1);
 	Device->CreateRenderTargetView(BloomBlurTarget.Get(), 0, BloomBlurRTV);
 
-	// --- Create SRVs ---
+	// Create SRVs
 	UINT srvDescriptorSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// BloomRenderTarget SRV
 	BloomSRVIndex = srvDescriptorOffset++;
 	D3D12_CPU_DESCRIPTOR_HANDLE bloomSRVHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	bloomSRVHandle.ptr += (SIZE_T)BloomSRVIndex * srvDescriptorSize;
 	Device->CreateShaderResourceView(BloomRenderTarget.Get(), 0, bloomSRVHandle);
 
-	// BloomBlurTarget SRV
 	BloomBlurSRVIndex = srvDescriptorOffset++;
 	D3D12_CPU_DESCRIPTOR_HANDLE bloomBlurSRVHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	bloomBlurSRVHandle.ptr += (SIZE_T)BloomBlurSRVIndex * srvDescriptorSize;

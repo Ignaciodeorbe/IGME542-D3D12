@@ -1,0 +1,1 @@
+I tried to make a post process bloom effect. I made a method, in graphics CreateBloomBuffers where I create the SRVs and RTVs. I bind the resources and render targets and set up root signatures in game.cpp. I also made 3 hlsl files. The bloom effect looks kind of bad especially with high values so I just set it low for now.

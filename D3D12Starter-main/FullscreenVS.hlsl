@@ -7,7 +7,13 @@ struct VertexOutput
 VertexOutput main(uint id : SV_VertexID)
 {
     VertexOutput output;
-    output.uv = float2((id << 1) & 2, id & 2);
+    float2 uvs[3] =
+    {
+        float2(0, 0),
+        float2(2, 0),
+        float2(0, 2)
+    };
+    output.uv = uvs[id];
     output.position = float4(output.uv * float2(2, -2) + float2(-1, 1), 0, 1);
     return output;
 }
